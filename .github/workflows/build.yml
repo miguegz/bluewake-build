@@ -1,7 +1,5 @@
-yaml
-
 name: Build BlueWake IPA
-
+ 
 on:
   workflow_dispatch:
     inputs:
@@ -13,12 +11,12 @@ on:
         description: "Only convert and upload the ISO (skip the build)"
         type: boolean
         default: false
-
+ 
 jobs:
   build:
     runs-on: macos-26
     timeout-minutes: 360
-
+ 
     steps:
       - name: Show runner information
         run: |
@@ -27,7 +25,7 @@ jobs:
           sysctl -n machdep.cpu.brand_string
           sysctl -n hw.memsize
           df -h /
-
+ 
       - name: Download Wind Waker disc image
         env:
           WIND_WAKER_URL: ${{ secrets.WIND_WAKER_URL }}
@@ -41,7 +39,7 @@ jobs:
             "$WIND_WAKER_URL"
           ls -lh "test build.ciso"
           file "test build.ciso"
-
+ 
       - name: Download Wiimms ISO Tools
         run: |
           set -euo pipefail
@@ -57,7 +55,7 @@ jobs:
           fi
           chmod +x "$WIT_DIR/bin/wit"
           "$WIT_DIR/bin/wit" --version
-
+ 
       - name: Convert to ISO
         run: |
           set -euo pipefail
@@ -70,7 +68,7 @@ jobs:
             -d WindWaker.iso
           ls -lh WindWaker.iso
           file WindWaker.iso
-
+ 
       - name: Upload ISO
         if: ${{ inputs.iso_only }}
         uses: actions/upload-artifact@v4
@@ -80,11 +78,11 @@ jobs:
           if-no-files-found: error
           compression-level: 0
           retention-days: 1
-
+ 
       - name: Install build tools
         if: ${{ !inputs.iso_only }}
         run: brew install cmake ninja || true
-
+ 
       - name: Restore build cache
         if: ${{ !inputs.iso_only }}
         id: cache
@@ -94,7 +92,7 @@ jobs:
           key: bw-build-${{ github.run_id }}-${{ github.run_attempt }}
           restore-keys: |
             bw-build-
-
+ 
       - name: Cache status
         if: ${{ !inputs.iso_only }}
         run: |
@@ -105,7 +103,7 @@ jobs:
           else
             echo "No restored folder (fresh start)"
           fi
-
+ 
       - name: Clone BlueWake
         if: ${{ !inputs.iso_only && steps.cache.outputs.cache-matched-key == '' }}
         run: |
@@ -113,13 +111,13 @@ jobs:
           git clone --depth 1 \
             https://github.com/chrissotraidis/bluewake.git \
             "$RUNNER_TEMP/bluewake"
-
+ 
       - name: Show BlueWake commit
         if: ${{ !inputs.iso_only }}
         run: |
           cd "$RUNNER_TEMP/bluewake"
           git log -1 --format='%H %s'
-
+ 
       - name: Build IPA (with watchdog)
         if: ${{ !inputs.iso_only }}
         id: build
@@ -128,10 +126,10 @@ jobs:
         run: |
           set -u
           set -m
-
+ 
           cd "$RUNNER_TEMP/bluewake"
           chmod +x scripts/builder/build.sh
-
+ 
           FLAGS=(--ipa "$RUNNER_TEMP/BlueWake.ipa" --no-train)
           if grep -q -- '--jobs' scripts/builder/build.sh; then
             FLAGS+=(--jobs 3)
@@ -140,15 +138,15 @@ jobs:
             FLAGS+=(--no-mods)
           fi
           echo "Flags: ${FLAGS[*]}"
-
+ 
           LIMIT=$(( LIMIT_MIN * 60 ))
           echo "Watchdog limit: ${LIMIT_MIN} minutes"
-
+ 
           ./scripts/builder/build.sh \
             "$RUNNER_TEMP/wind-waker/WindWaker.iso" \
             "${FLAGS[@]}" &
           BUILD_PID=$!
-
+ 
           (
             sleep "$LIMIT"
             echo "::warning::Time limit reached, stopping build to save cache"
@@ -158,11 +156,11 @@ jobs:
             pkill -KILL -x xcodebuild clang clang++ ninja make 2>/dev/null
           ) &
           WATCHDOG_PID=$!
-
+ 
           wait "$BUILD_PID"
           RC=$?
           kill "$WATCHDOG_PID" 2>/dev/null
-
+ 
           if [ "$RC" -eq 0 ]; then
             echo "Build finished successfully"
             echo "done=true" >> "$GITHUB_OUTPUT"
@@ -171,21 +169,21 @@ jobs:
             echo "done=false" >> "$GITHUB_OUTPUT"
           fi
           exit 0
-
+ 
       - name: Save build cache
         if: ${{ always() && !inputs.iso_only }}
         uses: actions/cache/save@v4
         with:
           path: ${{ runner.temp }}/bluewake
           key: bw-build-${{ github.run_id }}-${{ github.run_attempt }}
-
+ 
       - name: Check IPA
         if: steps.build.outputs.done == 'true'
         run: |
           ls -lh "$RUNNER_TEMP/BlueWake.ipa"
           file "$RUNNER_TEMP/BlueWake.ipa"
           df -h /
-
+ 
       - name: Upload IPA
         if: steps.build.outputs.done == 'true'
         uses: actions/upload-artifact@v4
