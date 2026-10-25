@@ -28,7 +28,7 @@ jobs:
  
       - name: Download Wind Waker disc image
         env:
-          WIND_WAKER_URL: ${{ https://drive.usercontent.google.com/download?id=1DqilLBbNGysr739xzp7-K1NDbWFO_F6g&export=download&confirm=t }}
+          WIND_WAKER_URL: https://drive.usercontent.google.com/download?id=1DqilLBbNGysr739xzp7-K1NDbWFO_F6g&export=download&confirm=t
         run: |
           set -euo pipefail
           mkdir -p "$RUNNER_TEMP/wind-waker"
