@@ -1,4 +1,5 @@
-```yaml
+yaml
+
 name: Build BlueWake IPA
 
 on:
@@ -193,4 +194,3 @@ jobs:
           path: ${{ runner.temp }}/BlueWake.ipa
           if-no-files-found: error
           retention-days: 1
-```
